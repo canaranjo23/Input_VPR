@@ -10,14 +10,20 @@ The detailed structure of module is:
 
 > Classes
 >> Parent Class 
+
 >> ingestion:
+
 >>> MODIS
+
 >>> SLSTR
+
 >> SEVIRI 
 
 > Functions
 >> MODIS
+
 >> SLSTR
+
 >> SEVIRI 
 
 
