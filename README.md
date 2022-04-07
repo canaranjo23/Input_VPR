@@ -1,8 +1,8 @@
-# Input_VPR
+# Input VPR
 This repository contains the module for create the input file for VPR model from INGV, Roma.
 
-There is a Parent Class which is called: _*Ingestion*_. Also, there are 2 Childs Classes called: _*MODIS, SLSTR*_.
-In other hand, for SEVIRI there is an unique Class called: _*SEVIRI*_
+There is a Parent Class which is called: ***Ingestion***. Also, there are 2 Childs Classes called: ***MODIS, SLSTR***.
+In other hand, for SEVIRI there is an unique Class called: ***SEVIRI***
 
 ## Structure 
 The module *invpr.py* contains the classes and functions that build the Input file for VPR model. In this moment, the module allows to create the input file for 3 satellites data: **MODIS, SLSTR and SEVIRI**. 
