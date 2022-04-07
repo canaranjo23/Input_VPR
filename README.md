@@ -11,15 +11,16 @@ The detailed structure of module is:
 
 - Libraries used
 
-- Classes
+- Classes:
 	- ingestion:
-		- MODIS
-		- SLSTR
-	- SEVIRI 
+		- MODIS()
+		- SLSTR()
+	- SEVIRI()
 
-- Functions
-	- MODIS
-	- SLSTR
-	- SEVIRI 
+- Functions:
+	- Used for the class MODIS
+	- Used for the class SLSTR
+	- Used for the class SEVIRI 
 
+## Quick start guide
 
