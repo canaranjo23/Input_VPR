@@ -16,6 +16,7 @@ In other hand, for SEVIRI there is an unique Class called: SEVIRI
 # %% - Libraries
 import numpy as np
 from osgeo import gdal
+import os
 from pyhdf.SD import SD, SDC
 import datetime
 import matplotlib.pyplot as plt
@@ -35,6 +36,8 @@ class ingestion:
     def __init__(self):
         """It creates the all essential variables."""
         self.name = ''
+        self.path = ''
+        self.d = {}             # Dictionary for save temperature and height data
         self.b85um = []         # 8.5um Band
         self.b11um = []         # 11um Band
         self.b12um = []         # 12um Band
@@ -50,26 +53,44 @@ class ingestion:
         self.lsm = []           # Land-Sea Mask
         self.cm = []            # Cloud Mask
         
-    def read_pmask(self, filename, path = r''):
+    def read_pmask(self):
         """This function read the Plume Mask. 
         The plume mask in this point must be ready with the classification (0/7)
         Formats: .dat / .img"""
-        datapm = gdal.Open(path+filename, gdal.GA_ReadOnly) 
+        
+        # Search in the path automatically
+        os.chdir(self.path)
+        ls = os.listdir(self.path)
+        chararray = np.array(ls)
+        
+        # Get the filename of the Plume Mask (Select the file different to .hdr)
+        bl = np.logical_xor(np.char.startswith(chararray,'pmask'), np.char.endswith(chararray,'.hdr'))
+        filename = chararray[bl][0]
+        
+        datapm = gdal.Open(self.path+filename, gdal.GA_ReadOnly) 
         self.pmask = datapm.GetRasterBand(1) 
         self.pmask = self.pmask.ReadAsArray()
         
-    def read_temperature(self, t):
+    def read_temperature(self):
         """This function read the plume Temperature in °C, previously 
         calculated. 
         Format: Float (xx.xxxx)"""
-        self.temp_ash = (self.pmask > 0)*t
-        self.temp_so2 = (self.pmask > 0)*t
         
-    def read_height(self, h):
+        t_ash = np.float(self.d['t_ash(C)'])
+        t_so2 = np.float(self.d['t_so2(C)'])
+
+        self.temp_ash = (self.pmask > 0)*t_ash
+        self.temp_so2 = (self.pmask > 0)*t_so2
+        
+    def read_height(self):
         """This function read the plume Height in KM, previously calculated. 
         Format: Float (xx.xxxx)"""
-        self.h_ash = (self.pmask > 0)*h
-        self.h_so2 = (self.pmask > 0)*h
+        
+        h_ash = np.float(self.d['h_ash(Km)'])
+        h_so2 = np.float(self.d['h_so2(Km)'])
+        
+        self.h_ash = (self.pmask > 0)*h_ash
+        self.h_so2 = (self.pmask > 0)*h_so2
         
     def stack(self):    
         """This function stack all variables in an numpy array. This array is 
@@ -121,7 +142,7 @@ class ingestion:
         driver = gdal.GetDriverByName('ENVI')
         
         # Let us create one OBJECT where storage all data for the file.
-        outRaster = driver.Create(self.name, 
+        outRaster = driver.Create(self.path + self.name, 
                                   array.shape[2], array.shape[1], array.shape[0], 
                                   gdal.GDT_Float32)
         
@@ -150,18 +171,26 @@ class MODIS(ingestion):
         https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/modis-overview/
         """
     
-    def read_data(self, filename, geo_filename, path=''):
+    def generator(self, path):
         """This function allows reading all data from the .hdf file. 
         From here is extracted: 8.5um Band, 11um Band, 12um Band, Latitude, 
         Longitude, View Zenith Angle(VZA), Land-Sea Mask. Also is calculated 
         the Pixel Area (using a previous function) and the Cloud Mask."""
         
-        # Validation data format
-        if not (filename[-4:] == '.hdf'): 
-            raise Exception('Format file from Calibrated Radiances Level-1B is incorrect. It must be .hdf')
-            
-        if not (geo_filename[-4:] == '.hdf'):
-            raise Exception('Format file from Geolocation data is incorrect. It must be .hdf')
+        self.path = path
+        
+        # Search in the path automatically
+        os.chdir(path)
+        ls = os.listdir(path)
+        chararray = np.array(ls)
+        
+        # Get the filename
+        bl = np.logical_and(np.char.startswith(chararray,'MOD021KM.'), np.char.endswith(chararray,'.hdf'))
+        filename = chararray[bl][0]
+        
+        # Get the geo filename 
+        bl = np.logical_and(np.char.startswith(chararray,'MOD03.'), np.char.endswith(chararray,'.hdf'))
+        geo_filename = chararray[bl][0]
         
         # Let's manage the date and day of image.
         info = filename.split('.')      # Split the all information from filename
@@ -221,7 +250,25 @@ class MODIS(ingestion):
         # --------------------------------------------------------------------
         # Pixel area calculation 
         self.pixel_area = pixel_area_calculator()
-
+        
+        # --------------------------------------------------------------------
+        # Read the Plume Mask
+        self.read_pmask()
+        
+        # --------------------------------------------------------------------
+        # Read data of Temperature and Height
+        with open(self.path+"paramFile.txt") as f:
+            next(f)
+            for line in f:
+                (key, val) = (line.rstrip('\n')).split(';')
+                self.d[key] = val        
+        
+        self.read_temperature()
+        self.read_height()
+        
+        # --------------------------------------------------------------------
+        # Save input VPR file
+        self.save()
     
 # ============================================================================
     # SLSTR Class
@@ -231,13 +278,24 @@ class SLSTR(ingestion):
     https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-3-slstr/level-1/tir-brightness-temperature
     """
     
-    def read_data(self, path):
+    def generator(self, path):
+        
+        self.path = path
+        
+        # Search in the path automatically
+        os.chdir(path)
+        ls = os.listdir(path)
+        chararray = np.array(ls)
+        
+        # Get the filename
+        bl = np.logical_and(np.char.startswith(chararray,'S3'), np.char.endswith(chararray,'.SEN3'))
+        dirf = chararray[bl][0] + '/'
        
         # Let's read the bands and data
-        b11um_ob = Dataset(path+'S8_BT_in.nc', 'r')
+        b11um_ob = Dataset(path+dirf+'S8_BT_in.nc', 'r')
         b11um = np.array(b11um_ob['S8_BT_in'][:]) 
         
-        b12um_ob = Dataset(path+'S9_BT_in.nc', 'r')
+        b12um_ob = Dataset(path+dirf+'S9_BT_in.nc', 'r')
         b12um = np.array(b12um_ob['S9_BT_in'][:]) 
         
         # Manage the no data pixels
@@ -253,7 +311,7 @@ class SLSTR(ingestion):
         
         # -------------------------------------------------------------------
         # Read the Name and Date of image. 
-        with open(path+'xfdumanifest.xml') as f:
+        with open(path+dirf+'xfdumanifest.xml') as f:
             read_data = f.read()
             
             start = read_data.find('<sentinel-safe:startTime>')
@@ -280,26 +338,26 @@ class SLSTR(ingestion):
         self.name = sat+'_'+dt+'_'+t+'_VPRinput'
         
         # Get Latitude and Longitude data
-        geoloc_ob = Dataset(path+'geodetic_in.nc', 'r')
+        geoloc_ob = Dataset(path+dirf+'geodetic_in.nc', 'r')
         self.lat = np.array(geoloc_ob['latitude_in'][:])
         self.lon = np.array(geoloc_ob['longitude_in'][:])
         
         # Get the information about View Zenith Angle (VZA)
-        geodetic_ob = Dataset(path+'geodetic_tx.nc', 'r')
+        geodetic_ob = Dataset(path+dirf+'geodetic_tx.nc', 'r')
         latx = np.array(geodetic_ob['latitude_tx'][:])
         lonx = np.array(geodetic_ob['longitude_tx'][:])
         
         latxp = latx.flatten()
         lonxp = lonx.flatten()
         
-        geometric_ob = Dataset(path+'geometry_tn.nc', 'r')
+        geometric_ob = Dataset(path+dirf+'geometry_tn.nc', 'r')
         vza_t_ob = np.array(geometric_ob['sat_zenith_tn'][:])
         vza_t_ob = vza_t_ob.flatten()
         self.vza = griddata((latxp,lonxp), vza_t_ob, (self.lat, self.lon), method='linear')
         
         # Get the Land-Sea mask
         # https://sentinel.esa.int/documents/247904/4598082/Sentinel-3-SLSTR-Land-Handbook.pdf/
-        lsm_ob = Dataset(path+'flags_in.nc', 'r')
+        lsm_ob = Dataset(path+dirf+'flags_in.nc', 'r')
         lsmask = np.array(lsm_ob['confidence_in'][:]) 
         
         lsmaskp = vec_bin_array(lsmask)             # Convert data to Binary
@@ -310,6 +368,26 @@ class SLSTR(ingestion):
         
         # Create the Pixel-Area 
         self.pixel_area = np.ones(self.lsm.shape)
+        
+        # --------------------------------------------------------------------
+        # Read the Plume Mask
+        self.read_pmask()
+        
+        # --------------------------------------------------------------------
+        # Read data of Temperature and Height
+        with open(self.path+"paramFile.txt") as f:
+            next(f)
+            for line in f:
+                (key, val) = (line.rstrip('\n')).split(';')
+                self.d[key] = val        
+        
+        self.read_temperature()
+        self.read_height()
+        
+        # --------------------------------------------------------------------
+        # Save input VPR file
+        self.save()
+
 
 
 # ============================================================================
@@ -324,6 +402,7 @@ class SEVIRI:
         """It creates the all essential variables."""
         self.name = ''
         self.path = ''
+        self.d = {}             # Dictionary for save temperature and height data
         self.vza = []           # View Zenith angles in degrees
         self.vaa = []           # View Azimuth angles in degrees
         self.pmask = []         # Plume mask
@@ -334,16 +413,26 @@ class SEVIRI:
         self.cm = []            # Cloud Mask
         self.pixel_area = []    # Pixel area (Km2)
         
-    def read_data(self, filename, path = r''):
+    def generator(self, path):
         """Esta función permite leer el archivo que nos entrega Dario, lo 
         abrimos en modo lectura, extraemos las bandas y atributos necesarios
         para el calculo de VAA y VZA"""
+        
+        self.path = path
+        
+        # Search in the path automatically
+        os.chdir(path)
+        ls = os.listdir(path)
+        chararray = np.array(ls)
+        
+        # Get the filename
+        bl = np.char.endswith(chararray,'.nc')
+        filename = chararray[bl][0]
 
         # Let's read the bands and data 
         data_ob = Dataset(path+filename, 'r')
         
         self.name = filename[:-3]
-        self.path = path
         
         # Get Latitude and Longitude data
         Lon = np.array(data_ob['longitude'][:])
@@ -364,26 +453,63 @@ class SEVIRI:
         # Create the Pixel-Area 
         self.pixel_area = np.ones(self.vza.shape)*(resolution**2)/1000000
         
-    def read_pmask(self, filename, path = r''):
+        # --------------------------------------------------------------------
+        # Read the Plume Mask
+        self.read_pmask()
+        
+        # --------------------------------------------------------------------
+        # Read data of Temperature and Height
+        with open(self.path+"paramFile.txt") as f:
+            next(f)
+            for line in f:
+                (key, val) = (line.rstrip('\n')).split(';')
+                self.d[key] = val        
+        
+        self.read_temperature()
+        self.read_height()
+        
+        # --------------------------------------------------------------------
+        # Save input VPR file
+        self.save()
+        
+    def read_pmask(self):
         """This function read the Plume Mask. 
         The plume mask in this point must be ready with the classification (0/7)
         Formats: .dat / .img"""
-        datapm = gdal.Open(path+filename, gdal.GA_ReadOnly) 
+        
+        # Search in the path automatically
+        os.chdir(self.path)
+        ls = os.listdir(self.path)
+        chararray = np.array(ls)
+        
+        # Get the filename of the Plume Mask (Select the file different to .hdr)
+        bl = np.logical_xor(np.char.startswith(chararray,'pmask'), np.char.endswith(chararray,'.hdr'))
+        filename = chararray[bl][0]
+        
+        datapm = gdal.Open(self.path+filename, gdal.GA_ReadOnly) 
         self.pmask = datapm.GetRasterBand(1) 
         self.pmask = self.pmask.ReadAsArray()
         
-    def read_temperature(self, t):
+    def read_temperature(self):
         """This function read the plume Temperature in °C, previously 
         calculated. 
         Format: Float (xx.xxxx)"""
-        self.temp_ash = (self.pmask > 0)*t
-        self.temp_so2 = (self.pmask > 0)*t
         
-    def read_height(self, h):
+        t_ash = np.float(self.d['t_ash(C)'])
+        t_so2 = np.float(self.d['t_so2(C)'])
+
+        self.temp_ash = (self.pmask > 0)*t_ash
+        self.temp_so2 = (self.pmask > 0)*t_so2
+        
+    def read_height(self):
         """This function read the plume Height in KM, previously calculated. 
         Format: Float (xx.xxxx)"""
-        self.h_ash = (self.pmask > 0)*h
-        self.h_so2 = (self.pmask > 0)*h
+        
+        h_ash = np.float(self.d['h_ash(Km)'])
+        h_so2 = np.float(self.d['h_so2(Km)'])
+        
+        self.h_ash = (self.pmask > 0)*h_ash
+        self.h_so2 = (self.pmask > 0)*h_so2
         
     def save(self):
         """
@@ -441,18 +567,6 @@ class SEVIRI:
         tcloud_mask[:,:] = self.cm
         tpixel_area[:,:] = self.pixel_area
         
-        print("-- Some pre-defined attributes for variable temp:")
-        print("tvza.shape:", tvza.shape)
-        print("tvza.dtype:", tvza.dtype)
-        print("tvza.ndim:", tvza.ndim)
-        
-        print("-- Wrote data, tvza.shape is now ", tvza.shape)
-        # read data back from variable (by slicing it), print min and max
-        # print("-- Min/Max values:", tvza.min(), tvza.max())
-        
-        print('')
-        print(data)
-        # print(data)
         data.close()
         
     def plot(self, vble, c="gray"):
