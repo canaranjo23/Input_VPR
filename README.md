@@ -30,10 +30,10 @@ Firstly, the module needs one directory which must include:
 - paramFile.txt (With the information about the height and temperature of the volcanic ash cloud)
 
 * The *paramFile.txt* file must have the follow structure: (only can change the value for each parameter)
-'''
+```
 name;value
 t_ash(C);-51.326544
 t_so2(C);-51.326544
 h_ash(Km);10.54
 h_so2(Km);10.54 
-'''
+```
