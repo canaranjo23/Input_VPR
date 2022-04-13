@@ -38,6 +38,7 @@ class ingestion:
         self.name = ''
         self.path = ''
         self.d = {}             # Dictionary for save temperature and height data
+        self.classes = {'No-Plume':0, 'SO2':1, 'Vol':2, 'And':3, 'Obs':4, 'Ice':5, 'H2O':6, 'SiO':7} 
         self.b85um = []         # 8.5um Band
         self.b11um = []         # 11um Band
         self.b12um = []         # 12um Band
@@ -58,18 +59,54 @@ class ingestion:
         The plume mask in this point must be ready with the classification (0/7)
         Formats: .dat / .img"""
         
+        # Let's create the default Plume Mask -> 'No plume = 0'
+        self.pmask = np.zeros((self.b11um).shape)
+        
         # Search in the path automatically
         os.chdir(self.path)
         ls = os.listdir(self.path)
         chararray = np.array(ls)
         
-        # Get the filename of the Plume Mask (Select the file different to .hdr)
-        bl = np.logical_xor(np.char.startswith(chararray,'pmask'), np.char.endswith(chararray,'.hdr'))
-        filename = chararray[bl][0]
+        # Conditions to build the Plume mask
+        #   -SO2- [1]
+        if query(chararray, 'S02') > 0:
+            self.get_mask(chararray, 'S02')
+        #   -Vol- [2]
+        if query(chararray, 'Vol') > 0:
+            self.get_mask(chararray, 'Vol')
+        #   -And- [3]
+        if query(chararray, 'And') > 0:
+            self.get_mask(chararray, 'And')
+        #   -Obs- [4]
+        if query(chararray, 'Obs') > 0:
+            self.get_mask(chararray, 'Obs')
+        #   -Ice- [5]
+        if query(chararray, 'Ice') > 0:
+            self.get_mask(chararray, 'Ice')
+        #   -H2O- [6]
+        if query(chararray, 'H2O') > 0:
+            self.get_mask(chararray, 'H2O')
+        #   -SiO- [7]
+        if query(chararray, 'SiO') > 0:
+            self.get_mask(chararray, 'SiO')
         
+    def get_mask(self, m, cat):
+        """This function query if there is a file mask in the directory, then 
+        get the filename and finally save the data"""
+    
+        # Get the filename
+        index_array = np.char.find(m, cat)
+        bool_buffer = np.ones(m.shape, dtype=bool)
+        bool_buffer[index_array == -1] = False
+        bl = np.logical_and(bool_buffer, np.char.endswith(m,'.hdr'))
+        filename = m[bl][0][:-4]
+        
+        # Read the mask
         datapm = gdal.Open(self.path+filename, gdal.GA_ReadOnly) 
-        self.pmask = datapm.GetRasterBand(1) 
-        self.pmask = self.pmask.ReadAsArray()
+        pmask = datapm.GetRasterBand(1) 
+        pmask = pmask.ReadAsArray()
+        
+        self.pmask[pmask > 0] = self.classes[cat]
         
     def read_temperature(self):
         """This function read the plume Temperature in °C, previously 
@@ -403,6 +440,7 @@ class SEVIRI:
         self.name = ''
         self.path = ''
         self.d = {}             # Dictionary for save temperature and height data
+        self.classes = {'No-Plume':0, 'SO2':1, 'Vol':2, 'And':3, 'Obs':4, 'Ice':5, 'H2O':6, 'SiO':7} 
         self.vza = []           # View Zenith angles in degrees
         self.vaa = []           # View Azimuth angles in degrees
         self.pmask = []         # Plume mask
@@ -477,18 +515,54 @@ class SEVIRI:
         The plume mask in this point must be ready with the classification (0/7)
         Formats: .dat / .img"""
         
+        # Let's create the default Plume Mask -> 'No plume = 0'
+        self.pmask = np.zeros(self.vza.shape)
+        
         # Search in the path automatically
         os.chdir(self.path)
         ls = os.listdir(self.path)
         chararray = np.array(ls)
         
-        # Get the filename of the Plume Mask (Select the file different to .hdr)
-        bl = np.logical_xor(np.char.startswith(chararray,'pmask'), np.char.endswith(chararray,'.hdr'))
-        filename = chararray[bl][0]
+        # Conditions to build the Plume mask
+        #   -SO2- [1]
+        if query(chararray, 'S02') > 0:
+            self.get_mask(chararray, 'S02')
+        #   -Vol- [2]
+        if query(chararray, 'Vol') > 0:
+            self.get_mask(chararray, 'Vol')
+        #   -And- [3]
+        if query(chararray, 'And') > 0:
+            self.get_mask(chararray, 'And')
+        #   -Obs- [4]
+        if query(chararray, 'Obs') > 0:
+            self.get_mask(chararray, 'Obs')
+        #   -Ice- [5]
+        if query(chararray, 'Ice') > 0:
+            self.get_mask(chararray, 'Ice')
+        #   -H2O- [6]
+        if query(chararray, 'H2O') > 0:
+            self.get_mask(chararray, 'H2O')
+        #   -SiO- [7]
+        if query(chararray, 'SiO') > 0:
+            self.get_mask(chararray, 'SiO')
         
+    def get_mask(self, m, cat):
+        """This function query if there is a file mask in the directory, then 
+        get the filename and finally save the data"""
+    
+        # Get the filename
+        index_array = np.char.find(m, cat)
+        bool_buffer = np.ones(m.shape, dtype=bool)
+        bool_buffer[index_array == -1] = False
+        bl = np.logical_and(bool_buffer, np.char.endswith(m,'.hdr'))
+        filename = m[bl][0][:-4]
+        
+        # Read the mask
         datapm = gdal.Open(self.path+filename, gdal.GA_ReadOnly) 
-        self.pmask = datapm.GetRasterBand(1) 
-        self.pmask = self.pmask.ReadAsArray()
+        pmask = datapm.GetRasterBand(1) 
+        pmask = pmask.ReadAsArray()
+        
+        self.pmask[pmask > 0] = self.classes[cat]
         
     def read_temperature(self):
         """This function read the plume Temperature in °C, previously 
@@ -587,6 +661,21 @@ def pp(i, msg):
     if i == 1:
         print(' ')
     print('+ ' + msg)
+    
+def query(m, cat):
+    """This function makes the query for know if in the directory there is 
+    the file mask according the dictionary. This step is neccesary for built 
+    the total Plume Mask.   
+    
+    Return: 0 = Empty
+            >1 = There is a file
+    """
+    
+    index_array = np.char.find(m, cat)
+    bool_buffer = np.ones(m.shape, dtype=bool)
+    bool_buffer[index_array == -1] = False
+    
+    return np.sum(bool_buffer)
 
 # ============================================================================
     # For MODIS 
