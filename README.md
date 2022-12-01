@@ -1,5 +1,5 @@
 # Input VPR
-This repository contains the module for create the input file for VPR model from INGV, Roma.
+This repository contains the module to create the input file for VPR model from INGV, Roma.
 
 There is a Parent Class which is called: ***ingestion***. Also, there are 2 Childs Classes called: ***MODIS, SLSTR***.
 In other hand, for SEVIRI there is an unique Class called: ***SEVIRI***
