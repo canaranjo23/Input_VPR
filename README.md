@@ -5,7 +5,7 @@ There is a Parent Class which is called: ***ingestion***. Also, there are 2 Chil
 On the other hand, for SEVIRI there is an unique Class called: ***SEVIRI***
 
 ## Structure 
-The module *invpr.py* contains the classes and functions that build the Input file for VPR model. In this moment, the module allows to create the input file for 3 satellites data: **MODIS, SLSTR** and **SEVIRI**. 
+The module *invpr.py* contains the classes and functions to build the Input file for VPR model. In this moment, the module allows to create the input file for 3 satellites data: **MODIS, SLSTR** and **SEVIRI**. 
 
 The detailed structure of module is:
 
