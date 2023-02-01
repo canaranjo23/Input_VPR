@@ -38,19 +38,19 @@ h_ash(Km);10.54
 h_so2(Km);10.54 
 ```
 
-Then, for create the Input VPR file, the steps are like follow:
+Then, to create the Input VPR file, the steps are like follow:
 
-1) Create a object using some of the 3 classes: 
+1) Creating an object using some of the 3 classes available: 
 ```
 in_vpr = MODIS()
 ```
 
-2) Set the **Path** of Directory
+2) Set the **Path** of the root directory
 ```
 path = 'E:/Test VPR/MODIS/'
 ```
 
-3) Create the Input VPR file using the function *generator()*. The output file will be storage in the same path. 
+3) Creating the Input VPR file using the function *generator()*. The output file will be storage in the same path. 
 ```
 in_vpr.generator(path)
 ```
