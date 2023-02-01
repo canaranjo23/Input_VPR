@@ -18,9 +18,9 @@ The detailed structure of module is:
 	- SEVIRI()
 
 - Functions:
-	- Used for the class MODIS
-	- Used for the class SLSTR
-	- Used for the class SEVIRI 
+	- Used for the MODIS class 
+	- Used for the SLSTR class 
+	- Used for the SEVIRI class 
 
 ## Quick start guide
 
