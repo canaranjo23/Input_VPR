@@ -24,10 +24,10 @@ The detailed structure of module is:
 
 ## Quick start guide
 
-Firstly, the module needs one directory which must include:
-- Satellite mages data (According to each satellite)
+Firstly, the module needs a directory which must include:
+- Satellite images (According to each satellite)
 - Mask Files 
-- paramFile.txt (With the information about the height and temperature of the volcanic ash cloud)
+- paramFile.txt (With information about height and temperature of the volcanic ash cloud)
 
 The *paramFile.txt* file must have the follow structure (only can change the value for each parameter):
 ```
